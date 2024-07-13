@@ -22,7 +22,7 @@ def file_changed(file_path, last_content):
 def generate_patch(file_a, temp_file):
     patch_file = tempfile.NamedTemporaryFile(delete=False)
     patch_file.close()
-    subprocess.run(['diff', '-u', file_a, temp_file, '-o', patch_file.name])
+    subprocess.run(['diff', file_a, temp_file, '>', patch_file.name])
     return patch_file.name
 
 def apply_patch(file_b, patch_file):
