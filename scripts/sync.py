@@ -14,96 +14,84 @@ def write_log(log_message, log_file_path):
         log_file.write(log_message + '\n')
     print(log_message)
 
-def file_changed(file_path, last_content):
-    current_content = read_file(file_path)
-    return current_content != last_content, current_content
+def file_changed(new_file_path, old_content):
+    new_content = read_file(new_file_path)
+    return new_content != old_content, new_content
 
-def generate_patch(file_a, temp_file, patch_file_path):
-    subprocess.run(f'diff {file_a} {temp_file} > {patch_file_path}', shell=True)
+def generate_patch(old_file_a_path, new_file_a_path, patch_file_path):
+    subprocess.run(f'diff {old_file_a_path} {new_file_a_path} > {patch_file_path}', shell=True)
 
-def apply_patch(file_b, patch_file_path):
-    temp_file_b_path = f'{file_b}.temp'
-    shutil.copy(file_b, temp_file_b_path)
-    result = subprocess.run(['patch', '-F', '10', temp_file_b_path, '-i', patch_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return result.returncode == 0, temp_file_b_path
-
-def run_script(script_file, temp_dir):
-    result = subprocess.run(['sh', script_file], cwd=temp_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def apply_patch(old_file_b_path, patch_file_path, new_file_b_path):
+    shutil.copy(old_file_b_path, new_file_b_path)
+    result = subprocess.run(['patch', '-F', '10', new_file_b_path, '-i', patch_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result.returncode == 0
 
-def save_files(server_dir, timestamp, last_a_content, current_a_content, patch_file_path, old_b, new_b):
-    dir_path = os.path.join(server_dir, timestamp)
-    os.makedirs(dir_path, exist_ok=True)
-    
-    with open(os.path.join(dir_path, 'last_a.txt'), 'w') as f:
-        f.write(last_a_content)
-    
-    with open(os.path.join(dir_path, 'current_a.txt'), 'w') as f:
-        f.write(current_a_content)
-    
-    shutil.copy(patch_file_path, os.path.join(dir_path, 'patch.diff'))
-    shutil.copy(old_b, os.path.join(dir_path, 'old_b.txt'))
-    shutil.copy(new_b, os.path.join(dir_path, 'new_b.txt'))
+def run_script(script_path, temp_dir_path):
+    result = subprocess.run(['sh', script_path], cwd=temp_dir_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return result.returncode == 0
 
-def main(file_a, file_b, script_r):
+def main(origin_file_a_path, origin_file_b_path, origin_script_r_path):
     server_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    server_dir = os.path.abspath(f'server_{server_timestamp}')
-    os.makedirs(server_dir, exist_ok=True)
-    log_file_path = os.path.join(server_dir, 'log.txt')
+    server_dir_path = os.path.abspath(f'server_{server_timestamp}')
+    os.makedirs(server_dir_path, exist_ok=True)
+    log_file_path = os.path.join(server_dir_path, 'log.txt')
 
-    file_a = os.path.abspath(file_a)
-    file_b = os.path.abspath(file_b)
-    script_r = os.path.abspath(script_r)
+    origin_file_a_path = os.path.abspath(origin_file_a_path)
+    origin_file_b_path = os.path.abspath(origin_file_b_path)
+    origin_script_r_path = os.path.abspath(origin_script_r_path)
 
-    last_content = read_file(file_a)
+    old_a_content = read_file(origin_file_a_path)
     while True:
         time.sleep(5)
-        changed, new_content = file_changed(file_a, last_content)
+        changed, new_a_content = file_changed(origin_file_a_path, old_a_content)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         if changed:
-            write_log(f"{timestamp}: File {file_a} has changed, generating patch.", log_file_path)
+            write_log(f"{timestamp}: File {origin_file_a_path} has changed, generating patch.", log_file_path)
             
-            patch_dir = os.path.join(server_dir, timestamp)
-            os.makedirs(patch_dir, exist_ok=True)
+            patch_dir_path = os.path.join(server_dir_path, timestamp)
+            os.makedirs(patch_dir_path, exist_ok=True)
 
-            temp_file_a = os.path.join(patch_dir, os.path.basename(file_a))
-            temp_file_b = os.path.join(patch_dir, os.path.basename(file_b))
+            old_file_a_path = os.path.join(patch_dir_path, 'old_a.txt')
+            new_file_a_path = os.path.join(patch_dir_path, 'new_a.txt')
+            old_file_b_path = os.path.join(patch_dir_path, 'old_b.txt')
+            new_file_b_path = os.path.join(patch_dir_path, 'new_b.txt')
+            new_file_b_realname_path = os.path.join(patch_dir_path, os.path.basename(origin_file_b_path))
             
-            with open(temp_file_a, 'w') as f:
-                f.write(new_content)
+            with open(new_file_a_path, 'w') as f:
+                f.write(new_a_content)
             
-            shutil.copy(file_b, temp_file_b)
+            shutil.copy(origin_file_a_path, old_file_a_path)
+            shutil.copy(origin_file_b_path, old_file_b_path)
             
-            patch_file_path = os.path.join(patch_dir, 'patch.diff')
-            generate_patch(temp_file_a, file_a, patch_file_path)
+            patch_file_path = os.path.join(patch_dir_path, 'patch.diff')
+            generate_patch(old_file_a_path, new_file_a_path, patch_file_path)
             write_log(f"{timestamp}: Generated patch:\n{read_file(patch_file_path)}", log_file_path)
 
-            apply_success, temp_file_b_path = apply_patch(temp_file_b, patch_file_path)
+            apply_success = apply_patch(old_file_b_path, patch_file_path, new_file_b_path)
             
             if apply_success:
                 write_log(f"{timestamp}: Patch applied successfully.", log_file_path)
-                shutil.copy(script_r, os.path.join(patch_dir, os.path.basename(script_r)))
+                shutil.copy(origin_script_r_path, os.path.join(patch_dir_path, os.path.basename(origin_script_r_path)))
+                shutil.copy(new_file_b_path, new_file_b_realname_path)
 
-                if run_script(os.path.join(patch_dir, os.path.basename(script_r)), patch_dir):
-                    write_log(f"{timestamp}: Script ran successfully, updating file {file_b}.", log_file_path)
-                    save_files(server_dir, timestamp, last_content, new_content, patch_file_path, file_b, temp_file_b_path)
-                    shutil.copy(temp_file_b_path, file_b)
+                if run_script(os.path.join(patch_dir_path, os.path.basename(origin_script_r_path)), patch_dir_path):
+                    write_log(f"{timestamp}: Script ran successfully, updating file {origin_file_b_path}.", log_file_path)
+                    shutil.copy(new_file_b_realname_path, origin_file_b_path)
                 else:
-                    write_log(f"{timestamp}: Script failed, not updating file {file_b}.", log_file_path)
+                    write_log(f"{timestamp}: Script failed, not updating file {origin_file_b_path}.", log_file_path)
             else:
                 write_log(f"{timestamp}: Patch failed to apply.", log_file_path)
-                save_files(server_dir, timestamp, last_content, new_content, patch_file_path, file_b, temp_file_b_path)
 
-            last_content = new_content
+            old_a_content = new_a_content
         else:
-            write_log(f"{timestamp}: No changes detected in file {file_a}.", log_file_path)
+            write_log(f"{timestamp}: No changes detected in file {origin_file_a_path}.", log_file_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Monitor file changes and apply patches.')
-    parser.add_argument('file_a', type=str, help='Path to file a')
-    parser.add_argument('file_b', type=str, help='Path to file b')
-    parser.add_argument('script_r', type=str, help='Path to script r.sh')
+    parser.add_argument('file_a_path', type=str, help='Path to file a')
+    parser.add_argument('file_b_path', type=str, help='Path to file b')
+    parser.add_argument('script_r_path', type=str, help='Path to script r.sh')
 
     args = parser.parse_args()
-    main(args.file_a, args.file_b, args.script_r)
+    main(args.file_a_path, args.file_b_path, args.script_r_path)
