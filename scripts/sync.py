@@ -14,10 +14,6 @@ def write_log(log_message, log_file_path):
         log_file.write(log_message + '\n')
     print(log_message)
 
-def file_changed(new_file_path, old_content):
-    new_content = read_file(new_file_path)
-    return new_content != old_content, new_content
-
 def generate_patch(old_file_a_path, new_file_a_path, patch_file_path):
     subprocess.run(f'diff {old_file_a_path} {new_file_a_path} > {patch_file_path}', shell=True)
 
@@ -43,7 +39,9 @@ def main(origin_file_a_path, origin_file_b_path, origin_script_r_path):
     old_a_content = read_file(origin_file_a_path)
     while True:
         time.sleep(5)
-        changed, new_a_content = file_changed(origin_file_a_path, old_a_content)
+        
+        new_a_content = read_file(origin_file_a_path)
+        changed = (old_a_content != new_a_content)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         if changed:
@@ -58,10 +56,12 @@ def main(origin_file_a_path, origin_file_b_path, origin_script_r_path):
             new_file_b_path = os.path.join(patch_dir_path, 'new_b.txt')
             new_file_b_realname_path = os.path.join(patch_dir_path, os.path.basename(origin_file_b_path))
             
+            with open(old_file_a_path, 'w') as f:
+                f.write(old_a_content)
             with open(new_file_a_path, 'w') as f:
                 f.write(new_a_content)
             
-            shutil.copy(origin_file_a_path, old_file_a_path)
+            
             shutil.copy(origin_file_b_path, old_file_b_path)
             
             patch_file_path = os.path.join(patch_dir_path, 'patch.diff')
