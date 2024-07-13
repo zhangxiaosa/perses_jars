@@ -4,6 +4,7 @@ import subprocess
 import shutil
 import tempfile
 from datetime import datetime
+import argparse
 
 def read_file(file_path):
     with open(file_path, 'r') as file:
@@ -89,7 +90,10 @@ def main(file_a, file_b, script_r):
             write_log(f"{timestamp}: No changes detected in file {file_a}.")
 
 if __name__ == "__main__":
-    file_a = 'path/to/a.txt'
-    file_b = 'path/to/b.txt'
-    script_r = 'path/to/r.sh'
-    main(file_a, file_b, script_r)
+    parser = argparse.ArgumentParser(description='Monitor file changes and apply patches.')
+    parser.add_argument('file_a', type=str, help='Path to file a')
+    parser.add_argument('file_b', type=str, help='Path to file b')
+    parser.add_argument('script_r', type=str, help='Path to script r.sh')
+
+    args = parser.parse_args()
+    main(args.file_a, args.file_b, args.script_r)
