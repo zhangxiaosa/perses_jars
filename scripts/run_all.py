@@ -137,6 +137,7 @@ class ReducerRunner:
                 name='creduce', 
                 working_folder=self.working_folder, 
                 cmd=f'time docker run --rm -i -v /home:/home --workdir $(pwd) reducer:latest bash -c "/tmp/scripts/run_creduce.sh {self.property_test} {self.program_to_reduce} {self.jobs}"', 
+                program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
                 extra_cmd=None
@@ -210,18 +211,22 @@ class ReducerRunner:
         print(message)
 
     def start(self):
+        self.update_thread = threading.Thread(target=self.check_updates)
+        self.update_thread.daemon = True
+        self.update_thread.start()
+
         try:
             self.run_reducers()
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, stopping reducers...")
             self.stop_reducers()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            self.stop_reducers()
+        finally:
             self.all_reducers_done = True
+            self.update_thread.join()
 
-        self.update_thread = threading.Thread(target=self.check_updates)
-        self.update_thread.daemon = True
-        self.update_thread.start()
-
-        self.update_thread.join()
 
     def stop_reducers(self):
         for reducer in self.reducer_selected:
