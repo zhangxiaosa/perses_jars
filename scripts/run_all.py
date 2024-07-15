@@ -8,12 +8,13 @@ import multiprocessing
 from multiprocessing import Process, Manager
 
 class Reducer:
-    def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, extra_cmd, shared_dict):
+    def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, jobs, extra_cmd, shared_dict):
         self.name = name
         self.cmd = cmd
         self.program_to_reduce = program_to_reduce
         self.property_test = property_test
         self.rename_after_reduction = rename_after_reduction
+        self.jobs = jobs
         self.start_time = None
         self.end_time = None
         self.current_size = None
@@ -46,34 +47,35 @@ class Reducer:
         self.start_time = time.time()
         print(f"Starting reducer: {self.name}")
         try:
+            self.shared_dict[self.name] = {'status': 'running'}
             result = self.run_cmd(self.cmd,
                                   output_file=os.path.join(self.working_folder, 'stdout.log'),
                                   error_file=os.path.join(self.working_folder, 'stderr.log'))
             self.end_time = time.time()
             if result:
                 self.exit_code = result.returncode
-                self.shared_dict[self.name] = {'exit_code': self.exit_code, 'end_time': self.end_time}
                 if result.returncode != 0:
+                    self.shared_dict[self.name] = {'status': 'exit'}
                     print(f"{self.name} command failed: {self.cmd}")
                 else:
+                    self.shared_dict[self.name] = {'status': 'done'}
                     self.log.append(f"{self.name} ran successfully.")
-            if self.rename_after_reduction:
-                self.rename()
+                    if self.rename_after_reduction:
+                        self.shared_dict[self.name] = {'status': 'renaming'}
+                        self.log.append(f"{self.name} starts renaming.")
+                        self.rename()
+                        self.shared_dict[self.name] = {'status': 'done'}
+            
         except KeyboardInterrupt:
             print(f"{self.name} received KeyboardInterrupt, terminating process...")
             self.stop()
             self.end_time = time.time()
             self.exit_code = -1  # Indicate that the process was terminated by user
-            self.shared_dict[self.name] = {'exit_code': self.exit_code, 'end_time': self.end_time}
+            self.shared_dict[self.name] = {'status': 'killed'}
 
     def rename(self):
-        rename_cmd = f"creduce --no-default-passes \
-            --add-pass pass_clex rename-toks 1 \
-            --add-pass pass_clang rename-fun 1 \
-            --add-pass pass_clang rename-param 1 \
-            --add-pass pass_clang rename-var 1 \
-            --add-pass pass_clang rename-class 1 \
-            --add-pass pass_clang rename-cxx-method 1 {self.property_test} {self.program_to_reduce}"
+        rename_cmd = f"time ~/CCECReduce/docker/scripts/run_rename.sh 
+        {self.property_test} {self.program_to_reduce} {self.program_to_reduce} {self.jobs}"
         self.run_cmd(rename_cmd,
                      output_file=os.path.join(self.working_folder, 'rename_stdout.log'),
                      error_file=os.path.join(self.working_folder, 'rename_stderr.log'))
@@ -137,6 +139,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
+                jobs=self.jobs,
                 extra_cmd=f"cp {os.path.join(self.working_folder, 'perses', 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses')}",
                 shared_dict=self.shared_dict
             ),
@@ -147,6 +150,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
+                jobs=self.jobs,
                 extra_cmd=f"cp {os.path.join(self.working_folder, 'perses_slow_mode', 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses_slow_mode')}",
                 shared_dict=self.shared_dict
                 ),
@@ -157,6 +161,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
+                jobs=self.jobs,
                 extra_cmd=None,
                 shared_dict=self.shared_dict
             ),
@@ -167,6 +172,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
+                jobs=self.jobs,
                 extra_cmd=None,
                 shared_dict=self.shared_dict
             ),
@@ -177,6 +183,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
+                jobs=self.jobs,
                 extra_cmd=None,
                 shared_dict=self.shared_dict
             ),
@@ -213,19 +220,18 @@ class ReducerRunner:
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                size_status = "\t\t\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected])
-                status = "\t\t\t".join([
-                    f"{reducer.name}: error" if self.shared_dict.get(reducer.name, {}).get('end_time') is not None and self.shared_dict.get(reducer.name, {}).get('exit_code') != 0 else
-                    f"{reducer.name}: done" if self.shared_dict.get(reducer.name, {}).get('end_time') is not None else
-                    f"{reducer.name}: running"
+                size_status = " | ".join([f"{reducer.name}: {reducer.current_size:<10}" for reducer in self.reducer_selected])
+                status = " | ".join([
+                    f"{reducer.name}: {self.shared_dict.get(reducer.name, {}).get('status')}"
                     for reducer in self.reducer_selected
                 ])
-                self.log(f"Timestamp: {timestamp}\n{size_status}\n{status}")
+                self.log(f"Timestamp: {timestamp}\n{'reducer:':<10} {size_status}\n{'status:':<10} {status}")
                 self.log("-----------------------------------")
 
             time.sleep(1)
-        
+
         self.log("All reducers have completed. Exiting script.")
+
 
     def log(self, message):
         log_path = os.path.join(self.working_folder, 'stdout.log')
