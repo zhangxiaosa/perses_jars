@@ -30,8 +30,7 @@ class Reducer:
             os.makedirs(self.working_folder)
         shutil.copy(self.program_to_reduce, self.working_folder)
         shutil.copy(self.property_test, self.working_folder)
-        self.run_cmd(f"cd {self.working_folder}")
-        self.run_cmd(f"{self.cmd}")
+        self.run_cmd(f"cd {self.working_folder} && {self.cmd}")
 
     def run_cmd(self, cmd, output_file="/dev/null", error_file="/dev/null"):
         if cmd is None:
@@ -64,7 +63,7 @@ class Reducer:
             --add-pass pass_clang rename-var 1 \
             --add-pass pass_clang rename-class 1 \
             --add-pass pass_clang rename-cxx-method 1 {self.property_test} {self.program_to_reduce}"
-        self.run_cmd(rename_cmd,
+        self.run_cmd(f"cd {self.working_folder} && {rename_cmd}",
                      output_file=os.path.join(self.working_folder, 'rename_stdout.log'),
                      error_file=os.path.join(self.working_folder, 'rename_stderr.log'))
 
