@@ -105,7 +105,7 @@ class ReducerRunner:
         self.slow = args.slow
         self.jobs = args.jobs
         self.all_reducers_done = False
-        self.working_folder = f"reduction_results_{time.strftime('%Y%m%d_%H%M%S')}"
+        self.working_folder = os.path.join(os.getcwd(), f"reduction_results_{time.strftime('%Y%m%d_%H%M%S')}")
         self.executor = None
         self.update_thread = None
 
