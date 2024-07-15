@@ -34,6 +34,8 @@ class Reducer:
         self.run_cmd(f"{self.cmd}")
 
     def run_cmd(self, cmd, output_file="/dev/null", error_file="/dev/null"):
+        if cmd is None:
+            return None
         with open(output_file, 'w') as out, open(error_file, 'w') as err:
             self.process = subprocess.Popen(cmd, shell=True, stdout=out, stderr=err)
             self.process.wait()
@@ -45,11 +47,12 @@ class Reducer:
                               output_file=os.path.join(self.working_folder, 'stdout.log'),
                               error_file=os.path.join(self.working_folder, 'stderr.log'))
         self.end_time = time.time()
-        self.exit_code = result.returncode
-        if result.returncode != 0:
-            print(f"{self.name} command failed: {self.cmd}")
-        else:
-            self.log.append(f"{self.name} ran successfully.")
+        if result:
+            self.exit_code = result.returncode
+            if result.returncode != 0:
+                print(f"{self.name} command failed: {self.cmd}")
+            else:
+                self.log.append(f"{self.name} ran successfully.")
         if self.rename_after_reduction:
             self.rename()
 
@@ -109,7 +112,7 @@ class ReducerRunner:
             os.makedirs(self.working_folder)
 
         if self.slow:
-            self.reducers = [reducer.replace('perses', 'perses_vulcan').replace('creduce', 'creduce_slow') for reducer in self.reducers]
+            self.reducers = [reducer.replace('perses', 'perses_slow_mode').replace('creduce', 'creduce_slow_mode') for reducer in self.reducers]
 
         self.reducer_objects = {
             'perses': Reducer(
@@ -121,8 +124,8 @@ class ReducerRunner:
                 rename_after_reduction=self.rename_after_reduction, 
                 extra_cmd=f"cp ./perses_result/{self.program_to_reduce} ."
             ),
-            'perses_vulcan': Reducer(
-                name='perses_vulcan', 
+            'perses_slow_mode': Reducer(
+                name='perses_slow_mode', 
                 working_folder=self.working_folder, 
                 cmd=f'time /tmp/scripts/run_perses_slow_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
                 program_to_reduce=self.program_to_reduce, 
@@ -139,10 +142,10 @@ class ReducerRunner:
                 rename_after_reduction=self.rename_after_reduction, 
                 extra_cmd=None
             ),
-            'creduce_slow': Reducer(
-                name='creduce_slow', 
+            'creduce_slow_mode': Reducer(
+                name='creduce_slow_mode', 
                 working_folder=self.working_folder, 
-                cmd=f'time /tmp/scripts/run_creduce_slow_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
+                cmd=f'time /tmp/scripts/run_creduce_slow_mode_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
@@ -159,15 +162,21 @@ class ReducerRunner:
             ),
         }
 
+        # Log the initial arguments
+        self.log(f"Initial arguments: {args}")
+
     def run_cmd(self, cmd):
+        if cmd is None:
+            return None
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"Command failed: {cmd}\nError: {result.stderr}")
         return result.stdout
 
     def run_reducers(self):
+        reducer_selected_objects = [self.reducer_objects[reducer] for reducer in self.reducers]
         with ThreadPoolExecutor(max_workers=self.jobs) as self.executor:
-            futures = {self.executor.submit(self.reducer_objects[reducer].run): reducer for reducer in self.reducers}
+            futures = {self.executor.submit(reducer.run): reducer for reducer in reducer_selected_objects}
 
             try:
                 for future in futures:
@@ -182,13 +191,13 @@ class ReducerRunner:
     def check_updates(self):
         while not self.all_reducers_done:
             sizes_changed = False
-            for reducer in self.reducers:
-                if self.reducer_objects[reducer].check_updates():
+            for reducer in self.reducer_selected_objects:
+                if reducer.check_updates():
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                size_status = "\t".join([f"{reducer}: {self.reducer_objects[reducer].current_size}" for reducer in self.reducers])
-                status = "\t".join([f"{reducer}: done" if self.reducer_objects[reducer].end_time is not None else f"{reducer}: running" for reducer in self.reducers])
+                size_status = "\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected_objects])
+                status = "\t".join([f"{reducer.name}: done" if reducer.end_time is not None else f"{reducer.name}: running" for reducer in self.reducer_selected_objects])
                 self.log(f"Timestamp: {timestamp}\n{size_status}\n{status}")
                 self.log("-----------------------------------")
 
@@ -216,8 +225,8 @@ class ReducerRunner:
         self.update_thread.join()
 
     def stop_reducers(self):
-        for reducer in self.reducers:
-            self.reducer_objects[reducer].stop()
+        for reducer in self.reducer_selected_objects:
+            reducer.stop()
         if self.executor:
             self.executor.shutdown(wait=False)
 
