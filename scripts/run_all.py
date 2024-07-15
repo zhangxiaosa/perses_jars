@@ -118,7 +118,7 @@ class ReducerRunner:
             'perses': Reducer(
                 name='perses', 
                 working_folder=self.working_folder, 
-                cmd=f'time /tmp/scripts/run_perses.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
+                cmd=f'time docker run --rm -i -v /home:/home --workdir $(pwd) reducer:latest bash -c "/tmp/scripts/run_perses.sh {self.property_test} {self.program_to_reduce} {self.jobs}"', 
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
@@ -127,7 +127,7 @@ class ReducerRunner:
             'perses_slow_mode': Reducer(
                 name='perses_slow_mode', 
                 working_folder=self.working_folder, 
-                cmd=f'time /tmp/scripts/run_perses_slow_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
+                cmd=f'time docker run --rm -i -v /home:/home --workdir $(pwd) reducer:latest bash -c "/tmp/scripts/run_perses_slow_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}"', 
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
@@ -136,8 +136,7 @@ class ReducerRunner:
             'creduce': Reducer(
                 name='creduce', 
                 working_folder=self.working_folder, 
-                cmd=f'time /tmp/scripts/run_creduce.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
-                program_to_reduce=self.program_to_reduce, 
+                cmd=f'time docker run --rm -i -v /home:/home --workdir $(pwd) reducer:latest bash -c "/tmp/scripts/run_creduce.sh {self.property_test} {self.program_to_reduce} {self.jobs}"', 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
                 extra_cmd=None
@@ -145,7 +144,7 @@ class ReducerRunner:
             'creduce_slow_mode': Reducer(
                 name='creduce_slow_mode', 
                 working_folder=self.working_folder, 
-                cmd=f'time /tmp/scripts/run_creduce_slow_mode_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}', 
+                cmd=f'time docker run --rm -i -v /home:/home --workdir $(pwd) reducer:latest bash -c "/tmp/scripts/run_creduce_slow_mode.sh {self.property_test} {self.program_to_reduce} {self.jobs}"', 
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
