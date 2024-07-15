@@ -133,7 +133,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=f"cp {os.path.join(self.working_folder, "perses_result", self.program_to_reduce)} {os.path.join(self.working_folder, "perses_result")}"
+                extra_cmd=f"cp {os.path.join(self.working_folder, 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses_result')}"
             ),
             'perses_slow_mode': Reducer(
                 name='perses_slow_mode', 
@@ -142,7 +142,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=f"cp {os.path.join(self.working_folder, "perses_result", self.program_to_reduce)} {os.path.join(self.working_folder, "perses_result")}"
+                extra_cmd=f"cp {os.path.join(self.working_folder, 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses_result')}"
                 ),
             'creduce': Reducer(
                 name='creduce', 
