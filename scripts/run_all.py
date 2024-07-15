@@ -74,7 +74,7 @@ class Reducer:
             self.shared_dict[self.name] = {'status': 'killed'}
 
     def rename(self):
-        rename_cmd = f"time ~/CCECReduce/docker/scripts/run_rename.sh 
+        rename_cmd = f"time ~/CCECReduce/docker/scripts/run_rename.sh \
         {self.property_test} {self.program_to_reduce} {self.program_to_reduce} {self.jobs}"
         self.run_cmd(rename_cmd,
                      output_file=os.path.join(self.working_folder, 'rename_stdout.log'),
