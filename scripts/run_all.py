@@ -22,7 +22,6 @@ class Reducer:
         self.exit_code = None
         self.log = []
         self.working_folder = os.path.join(working_folder, name)
-        self.setup_reducer()
         self.process = None
         self.extra_cmd = extra_cmd
 
@@ -180,6 +179,7 @@ class ReducerRunner:
         self.reducer_selected = [self.reducer_objects[reducer] for reducer in self.reducers]
         processes = []
         for reducer in self.reducer_selected:
+            reducer.setup_reducer()
             p = Process(target=reducer.run)
             processes.append(p)
             p.start()
@@ -208,8 +208,15 @@ class ReducerRunner:
         self.log("All reducers have completed. Exiting script.")
 
     def log(self, message):
-        with open(os.path.join(self.working_folder, 'stdout.log'), 'a') as out_log:
+        log_path = os.path.join(self.working_folder, 'stdout.log')
+        if (os.path.exists(log_path)):
+            mode = 'a'
+        else:
+            mode = 'w'
+
+        with open(os.path.join(self.working_folder, 'stdout.log'), mode) as out_log:
             out_log.write(message + '\n')
+
         print(message)
 
 
