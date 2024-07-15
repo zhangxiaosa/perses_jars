@@ -174,9 +174,9 @@ class ReducerRunner:
         return result.stdout
 
     def run_reducers(self):
-        reducer_selected_objects = [self.reducer_objects[reducer] for reducer in self.reducers]
+        self.reducer_selected_objects = [self.reducer_objects[reducer] for reducer in self.reducers]
         with ThreadPoolExecutor(max_workers=self.jobs) as self.executor:
-            futures = {self.executor.submit(reducer.run): reducer for reducer in reducer_selected_objects}
+            futures = {self.executor.submit(reducer.run): reducer for reducer in self.reducer_selected_objects}
 
             try:
                 for future in futures:
