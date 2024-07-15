@@ -4,7 +4,8 @@ import threading
 import time
 import os
 import shutil
-from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
+from multiprocessing import Process
 
 class Reducer:
     def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, extra_cmd):
@@ -31,7 +32,7 @@ class Reducer:
             print(f"Created folder: {self.working_folder}")
         shutil.copy(self.program_to_reduce, self.working_folder)
         shutil.copy(self.property_test, self.working_folder)
-        self.run_cmd(f"cd {self.working_folder} && {self.cmd}")
+        os.chdir(self.working_folder)
 
     def run_cmd(self, cmd, output_file="/dev/null", error_file="/dev/null"):
         if cmd is None:
@@ -65,7 +66,7 @@ class Reducer:
             --add-pass pass_clang rename-var 1 \
             --add-pass pass_clang rename-class 1 \
             --add-pass pass_clang rename-cxx-method 1 {self.property_test} {self.program_to_reduce}"
-        self.run_cmd(f"cd {self.working_folder} && {rename_cmd}",
+        self.run_cmd(rename_cmd,
                      output_file=os.path.join(self.working_folder, 'rename_stdout.log'),
                      error_file=os.path.join(self.working_folder, 'rename_stderr.log'))
 
@@ -177,16 +178,15 @@ class ReducerRunner:
 
     def run_reducers(self):
         self.reducer_selected = [self.reducer_objects[reducer] for reducer in self.reducers]
-        with ThreadPoolExecutor(max_workers=self.jobs) as self.executor:
-            futures = {self.executor.submit(reducer.run): reducer for reducer in self.reducer_selected}
+        processes = []
+        for reducer in self.reducer_selected:
+            p = Process(target=reducer.run)
+            processes.append(p)
+            p.start()
+            print(f"Started process for reducer: {reducer.name}")
 
-            try:
-                for future in futures:
-                    future.result()
-            except KeyboardInterrupt:
-                print("Caught KeyboardInterrupt, stopping reducers...")
-                self.stop_reducers()
-                raise
+        for p in processes:
+            p.join()
 
         self.all_reducers_done = True
 
@@ -234,8 +234,6 @@ class ReducerRunner:
     def stop_reducers(self):
         for reducer in self.reducer_selected:
             reducer.stop()
-        if self.executor:
-            self.executor.shutdown(wait=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run multiple reducers on a program.")
