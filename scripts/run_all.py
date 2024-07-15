@@ -5,10 +5,10 @@ import time
 import os
 import shutil
 import multiprocessing
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 
 class Reducer:
-    def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, extra_cmd):
+    def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, extra_cmd, shared_dict):
         self.name = name
         self.cmd = cmd
         self.program_to_reduce = program_to_reduce
@@ -24,6 +24,7 @@ class Reducer:
         self.working_folder = os.path.join(working_folder, name)
         self.process = None
         self.extra_cmd = extra_cmd
+        self.shared_dict = shared_dict
 
     def setup_reducer(self):
         if not os.path.exists(self.working_folder):
@@ -51,6 +52,7 @@ class Reducer:
             self.end_time = time.time()
             if result:
                 self.exit_code = result.returncode
+                self.shared_dict[self.name] = {'exit_code': self.exit_code, 'end_time': self.end_time}
                 if result.returncode != 0:
                     print(f"{self.name} command failed: {self.cmd}")
                 else:
@@ -62,6 +64,7 @@ class Reducer:
             self.stop()
             self.end_time = time.time()
             self.exit_code = -1  # Indicate that the process was terminated by user
+            self.shared_dict[self.name] = {'exit_code': self.exit_code, 'end_time': self.end_time}
 
     def rename(self):
         rename_cmd = f"creduce --no-default-passes \
@@ -117,6 +120,7 @@ class ReducerRunner:
         self.working_folder = os.path.join(os.getcwd(), f"reduction_results_{time.strftime('%Y%m%d_%H%M%S')}")
         self.executor = None
         self.update_thread = None
+        self.shared_dict = Manager().dict()
 
         if not os.path.exists(self.working_folder):
             os.makedirs(self.working_folder)
@@ -133,7 +137,8 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=f"cp {os.path.join(self.working_folder, 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses_result')}"
+                extra_cmd=f"cp {os.path.join(self.working_folder, 'perses', 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses')}",
+                shared_dict=self.shared_dict
             ),
             'perses_slow_mode': Reducer(
                 name='perses_slow_mode', 
@@ -142,7 +147,8 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=f"cp {os.path.join(self.working_folder, 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses_result')}"
+                extra_cmd=f"cp {os.path.join(self.working_folder, 'perses_slow_mode', 'perses_result', self.program_to_reduce)} {os.path.join(self.working_folder, 'perses_slow_mode')}",
+                shared_dict=self.shared_dict
                 ),
             'creduce': Reducer(
                 name='creduce', 
@@ -151,7 +157,8 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=None
+                extra_cmd=None,
+                shared_dict=self.shared_dict
             ),
             'creduce_slow_mode': Reducer(
                 name='creduce_slow_mode', 
@@ -160,7 +167,8 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=None
+                extra_cmd=None,
+                shared_dict=self.shared_dict
             ),
             'llvm-reduce': Reducer(
                 name='llvm-reduce', 
@@ -169,7 +177,8 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=None
+                extra_cmd=None,
+                shared_dict=self.shared_dict
             ),
         }
 
@@ -204,10 +213,10 @@ class ReducerRunner:
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                size_status = "\t\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected])
-                status = "\t\t".join([
-                    f"{reducer.name}: error" if reducer.end_time is not None and reducer.exit_code != 0 else
-                    f"{reducer.name}: done" if reducer.end_time is not None else
+                size_status = "\t\t\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected])
+                status = "\t\t\t".join([
+                    f"{reducer.name}: error" if self.shared_dict.get(reducer.name, {}).get('end_time') is not None and self.shared_dict.get(reducer.name, {}).get('exit_code') != 0 else
+                    f"{reducer.name}: done" if self.shared_dict.get(reducer.name, {}).get('end_time') is not None else
                     f"{reducer.name}: running"
                     for reducer in self.reducer_selected
                 ])
