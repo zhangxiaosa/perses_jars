@@ -124,7 +124,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=f"cp ./perses_result/{self.program_to_reduce} ."
+                extra_cmd=f"cp {os.path.join(self.working_folder, "perses_result", self.program_to_reduce)} {os.path.join(self.working_folder, "perses_result")}"
             ),
             'perses_slow_mode': Reducer(
                 name='perses_slow_mode', 
@@ -133,7 +133,7 @@ class ReducerRunner:
                 program_to_reduce=self.program_to_reduce, 
                 property_test=self.property_test, 
                 rename_after_reduction=self.rename_after_reduction, 
-                extra_cmd=f"cp ./perses_result/{self.program_to_reduce} ."
+                extra_cmd=f"cp {os.path.join(self.working_folder, "perses_result", self.program_to_reduce)} {os.path.join(self.working_folder, "perses_result")}"
                 ),
             'creduce': Reducer(
                 name='creduce', 
@@ -195,14 +195,20 @@ class ReducerRunner:
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                size_status = "\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected])
-                status = "\t".join([f"{reducer.name}: done" if reducer.end_time is not None else f"{reducer.name}: running" for reducer in self.reducer_selected])
+                size_status = "\t\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected])
+                status = "\t\t".join([
+                    f"{reducer.name}: error" if reducer.end_time is not None and reducer.exit_code != 0 else
+                    f"{reducer.name}: done" if reducer.end_time is not None else
+                    f"{reducer.name}: running"
+                    for reducer in self.reducer_selected
+                ])
                 self.log(f"Timestamp: {timestamp}\n{size_status}\n{status}")
                 self.log("-----------------------------------")
 
             time.sleep(1)
-
+        
         self.log("All reducers have completed. Exiting script.")
+
 
     def log(self, message):
         log_path = os.path.join(self.working_folder, 'stdout.log')
