@@ -185,10 +185,7 @@ class ReducerRunner:
             p.start()
             print(f"Started process for reducer: {reducer.name}")
 
-        for p in processes:
-            p.join()
-
-        self.all_reducers_done = True
+        return processes
 
     def check_updates(self):
         while not self.all_reducers_done:
@@ -222,7 +219,16 @@ class ReducerRunner:
 
     def start(self):
         try:
-            self.run_reducers()
+            processes = self.run_reducers()
+
+            self.update_thread = threading.Thread(target=self.check_updates)
+            self.update_thread.daemon = True
+            self.update_thread.start()
+
+            for p in processes:
+                p.join()
+            self.all_reducers_done = True
+
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, stopping reducers...")
             self.stop_reducers()
@@ -232,11 +238,7 @@ class ReducerRunner:
         finally:
             self.all_reducers_done = True
 
-        self.update_thread = threading.Thread(target=self.check_updates)
-        self.update_thread.daemon = True
-        self.update_thread.start()
         self.update_thread.join()
-
 
     def stop_reducers(self):
         for reducer in self.reducer_selected:
