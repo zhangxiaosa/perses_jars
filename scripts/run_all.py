@@ -28,6 +28,7 @@ class Reducer:
     def setup_reducer(self):
         if not os.path.exists(self.working_folder):
             os.makedirs(self.working_folder)
+            print(f"Created folder: {self.working_folder}")
         shutil.copy(self.program_to_reduce, self.working_folder)
         shutil.copy(self.property_test, self.working_folder)
         self.run_cmd(f"cd {self.working_folder} && {self.cmd}")
@@ -42,6 +43,7 @@ class Reducer:
 
     def run(self):
         self.start_time = time.time()
+        print(f"Starting reducer: {self.name}")
         result = self.run_cmd(self.cmd,
                               output_file=os.path.join(self.working_folder, 'stdout.log'),
                               error_file=os.path.join(self.working_folder, 'stderr.log'))
@@ -109,6 +111,7 @@ class ReducerRunner:
 
         if not os.path.exists(self.working_folder):
             os.makedirs(self.working_folder)
+            print(f"Created folder: {self.working_folder}")
 
         if self.slow:
             self.reducers = [reducer.replace('perses', 'perses_slow_mode').replace('creduce', 'creduce_slow_mode') for reducer in self.reducers]
