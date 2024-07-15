@@ -44,18 +44,24 @@ class Reducer:
     def run(self):
         self.start_time = time.time()
         print(f"Starting reducer: {self.name}")
-        result = self.run_cmd(self.cmd,
-                              output_file=os.path.join(self.working_folder, 'stdout.log'),
-                              error_file=os.path.join(self.working_folder, 'stderr.log'))
-        self.end_time = time.time()
-        if result:
-            self.exit_code = result.returncode
-            if result.returncode != 0:
-                print(f"{self.name} command failed: {self.cmd}")
-            else:
-                self.log.append(f"{self.name} ran successfully.")
-        if self.rename_after_reduction:
-            self.rename()
+        try:
+            result = self.run_cmd(self.cmd,
+                                  output_file=os.path.join(self.working_folder, 'stdout.log'),
+                                  error_file=os.path.join(self.working_folder, 'stderr.log'))
+            self.end_time = time.time()
+            if result:
+                self.exit_code = result.returncode
+                if result.returncode != 0:
+                    print(f"{self.name} command failed: {self.cmd}")
+                else:
+                    self.log.append(f"{self.name} ran successfully.")
+            if self.rename_after_reduction:
+                self.rename()
+        except KeyboardInterrupt:
+            print(f"{self.name} received KeyboardInterrupt, terminating process...")
+            self.stop()
+            self.end_time = time.time()
+            self.exit_code = -1  # Indicate that the process was terminated by user
 
     def rename(self):
         rename_cmd = f"creduce --no-default-passes \
@@ -77,7 +83,10 @@ class Reducer:
     def stop(self):
         if self.process:
             self.process.terminate()
-            self.process.wait()
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
 
     def count(self, filename):
         try:
@@ -209,15 +218,14 @@ class ReducerRunner:
         
         self.log("All reducers have completed. Exiting script.")
 
-
     def log(self, message):
         log_path = os.path.join(self.working_folder, 'stdout.log')
-        if (os.path.exists(log_path)):
+        if os.path.exists(log_path):
             mode = 'a'
         else:
             mode = 'w'
 
-        with open(os.path.join(self.working_folder, 'stdout.log'), mode) as out_log:
+        with open(log_path, mode) as out_log:
             out_log.write(message + '\n')
 
         print(message)
