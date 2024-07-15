@@ -269,6 +269,15 @@ class ReducerRunner:
 
         self.update_thread.join()
 
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        size_status = " | ".join([f"{reducer.name}: {reducer.current_size:<10}" for reducer in self.reducer_selected])
+        status = " | ".join([
+            f"{reducer.name}: {self.shared_dict.get(reducer.name, {}).get('status')}"
+            for reducer in self.reducer_selected
+        ])
+        self.log(f"Timestamp: {timestamp}\n{'reducer:':<10} {size_status}\n{'status:':<10} {status}")
+        self.log("-----------------------------------")
+
     def stop_reducers(self):
         for reducer in self.reducer_selected:
             reducer.stop()
