@@ -174,9 +174,9 @@ class ReducerRunner:
         return result.stdout
 
     def run_reducers(self):
-        self.reducer_selected_objects = [self.reducer_objects[reducer] for reducer in self.reducers]
+        self.reducer_selected = [self.reducer_objects[reducer] for reducer in self.reducers]
         with ThreadPoolExecutor(max_workers=self.jobs) as self.executor:
-            futures = {self.executor.submit(reducer.run): reducer for reducer in self.reducer_selected_objects}
+            futures = {self.executor.submit(reducer.run): reducer for reducer in self.reducer_selected}
 
             try:
                 for future in futures:
@@ -191,13 +191,13 @@ class ReducerRunner:
     def check_updates(self):
         while not self.all_reducers_done:
             sizes_changed = False
-            for reducer in self.reducer_selected_objects:
+            for reducer in self.reducer_selected:
                 if reducer.check_updates():
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                size_status = "\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected_objects])
-                status = "\t".join([f"{reducer.name}: done" if reducer.end_time is not None else f"{reducer.name}: running" for reducer in self.reducer_selected_objects])
+                size_status = "\t".join([f"{reducer.name}: {reducer.current_size}" for reducer in self.reducer_selected])
+                status = "\t".join([f"{reducer.name}: done" if reducer.end_time is not None else f"{reducer.name}: running" for reducer in self.reducer_selected])
                 self.log(f"Timestamp: {timestamp}\n{size_status}\n{status}")
                 self.log("-----------------------------------")
 
@@ -211,10 +211,6 @@ class ReducerRunner:
         print(message)
 
     def start(self):
-        self.update_thread = threading.Thread(target=self.check_updates)
-        self.update_thread.daemon = True
-        self.update_thread.start()
-
         try:
             self.run_reducers()
         except KeyboardInterrupt:
@@ -222,10 +218,14 @@ class ReducerRunner:
             self.stop_reducers()
             self.all_reducers_done = True
 
+        self.update_thread = threading.Thread(target=self.check_updates)
+        self.update_thread.daemon = True
+        self.update_thread.start()
+
         self.update_thread.join()
 
     def stop_reducers(self):
-        for reducer in self.reducer_selected_objects:
+        for reducer in self.reducer_selected:
             reducer.stop()
         if self.executor:
             self.executor.shutdown(wait=False)
