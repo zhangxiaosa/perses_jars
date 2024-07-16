@@ -93,7 +93,7 @@ class Reducer:
                      error_file=os.path.join(self.working_folder, 'rename_stderr.log'))
         
     def format(self):
-        format_cmd = f"format -i {os.path.join(self.working_folder, self.program_to_reduce)}"
+        format_cmd = f"clang-format -i {os.path.join(self.working_folder, self.program_to_reduce)}"
         self.run_cmd(format_cmd)
 
     def record_size(self, size):
