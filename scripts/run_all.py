@@ -239,12 +239,11 @@ class ReducerRunner:
                     status_info = self.shared_dict.get(reducer.name, {}).get('status')
                     table_data.append([reducer.name, size_info, status_info])
 
-                headers = ["Reducer", "Size", "Status"]
+                headers = ["Reducer", "Size (ratio)", "Status"]
                 table = tabulate(table_data, headers, tablefmt="grid")
 
                 self.log(f"Timestamp: {timestamp}")
                 self.log(table)
-                self.log("-----------------------------------")
 
             time.sleep(1)
 
