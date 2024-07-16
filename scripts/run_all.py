@@ -52,19 +52,23 @@ class Reducer:
                                   output_file=os.path.join(self.working_folder, 'stdout.log'),
                                   error_file=os.path.join(self.working_folder, 'stderr.log'))
             self.end_time = time.time()
+
             if result:
                 self.exit_code = result.returncode
                 if result.returncode != 0:
-                    self.shared_dict[self.name] = {'status': 'exit'}
-                    print(f"{self.name} command failed: {self.cmd}")
+                    print(f"{self.name} command exited: {self.cmd}")
                 else:
-                    self.shared_dict[self.name] = {'status': 'done'}
                     self.log.append(f"{self.name} ran successfully.")
-                    if self.rename_after_reduction:
-                        self.shared_dict[self.name] = {'status': 'renaming'}
-                        self.log.append(f"{self.name} starts renaming.")
-                        self.rename()
-                        self.shared_dict[self.name] = {'status': 'done'}
+
+            # run formatter
+            self.format()
+
+            # run renamer
+            if self.rename_after_reduction:
+                self.log.append(f"{self.name} starts renaming.")
+                self.rename()
+            
+            self.shared_dict[self.name] = {'status': 'done'}
             
         except KeyboardInterrupt:
             print(f"{self.name} received KeyboardInterrupt, terminating process...")
@@ -79,6 +83,10 @@ class Reducer:
         self.run_cmd(rename_cmd,
                      output_file=os.path.join(self.working_folder, 'rename_stdout.log'),
                      error_file=os.path.join(self.working_folder, 'rename_stderr.log'))
+        
+    def format(self):
+        format_cmd = f"format -i {os.path.join(self.working_folder, self.program_to_reduce)}"
+        self.run_cmd(format_cmd)
 
     def record_size(self, size):
         self.previous_size = self.current_size
