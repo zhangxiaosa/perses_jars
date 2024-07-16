@@ -8,6 +8,10 @@ import multiprocessing
 from multiprocessing import Process, Manager
 from tabulate import tabulate
 
+def format_time(seconds):
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
 
 class Reducer:
     def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, jobs, extra_cmd, shared_dict):
@@ -71,7 +75,8 @@ class Reducer:
                 self.log.append(f"{self.name} starts renaming.")
                 self.rename()
             
-            self.shared_dict[self.name] = {'status': 'done'}
+            elapsed_time = format_time(self.end_time - self.start_time)
+            self.shared_dict[self.name] = {'status': f'done ({elapsed_time})'}
             
         except KeyboardInterrupt:
             print(f"{self.name} received KeyboardInterrupt, terminating process...")
@@ -225,12 +230,12 @@ class ReducerRunner:
 
 
     def check_updates(self):
-        while not self.all_reducers_done:
+        while True:
             sizes_changed = False
             for reducer in self.reducer_selected:
                 if reducer.check_updates():
                     sizes_changed = True
-            if sizes_changed:
+            if sizes_changed or self.all_reducers_done:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
 
                 table_data = []
@@ -244,6 +249,9 @@ class ReducerRunner:
 
                 self.log(f"Timestamp: {timestamp}")
                 self.log(table)
+
+            if self.all_reducers_done:
+                break
 
             time.sleep(1)
 
@@ -284,15 +292,6 @@ class ReducerRunner:
             self.all_reducers_done = True
 
         self.update_thread.join()
-
-        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        size_status = " | ".join([f"{reducer.name}: {reducer.current_size:<10} ({reducer.current_size/reducer.original_size:.2%})" for reducer in self.reducer_selected])
-        status = " | ".join([
-            f"{reducer.name}: {self.shared_dict.get(reducer.name, {}).get('status')}"
-            for reducer in self.reducer_selected
-        ])
-        self.log(f"Timestamp: {timestamp}\n{'reducer:':<10} {size_status}\n{'status:':<10} {status}")
-        self.log("-----------------------------------")
 
     def stop_reducers(self):
         for reducer in self.reducer_selected:
