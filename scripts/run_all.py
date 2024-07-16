@@ -6,6 +6,8 @@ import os
 import shutil
 import multiprocessing
 from multiprocessing import Process, Manager
+from tabulate import tabulate
+
 
 class Reducer:
     def __init__(self, name, working_folder, cmd, program_to_reduce, property_test, rename_after_reduction, jobs, extra_cmd, shared_dict):
@@ -221,6 +223,7 @@ class ReducerRunner:
 
         return processes
 
+
     def check_updates(self):
         while not self.all_reducers_done:
             sizes_changed = False
@@ -229,26 +232,23 @@ class ReducerRunner:
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                max_name_length = max(len(reducer.name) for reducer in self.reducer_selected)
-                max_size_length = max(len(f"{reducer.current_size} / {reducer.original_size} ({reducer.current_size/reducer.original_size:.2%})") for reducer in self.reducer_selected)
-                
-                name_list = " | ".join([f"{reducer.name.ljust(max_name_length)}" for reducer in self.reducer_selected])
-                size_list = " | ".join([f"{str(reducer.current_size).ljust(10)} / {str(reducer.original_size).ljust(10)} ({reducer.current_size/reducer.original_size:.2%})".ljust(max_size_length) for reducer in self.reducer_selected])
-                status_list = " | ".join([
-                    f"{reducer.name.ljust(max_name_length)}: {self.shared_dict.get(reducer.name, {}).get('status')}"
-                    for reducer in self.reducer_selected
-                ])
-                
+
+                table_data = []
+                for reducer in self.reducer_selected:
+                    size_info = f"{reducer.current_size} / {reducer.original_size} ({reducer.current_size/reducer.original_size:.2%})"
+                    status_info = self.shared_dict.get(reducer.name, {}).get('status')
+                    table_data.append([reducer.name, size_info, status_info])
+
+                headers = ["Reducer", "Size", "Status"]
+                table = tabulate(table_data, headers, tablefmt="grid")
+
                 self.log(f"Timestamp: {timestamp}")
-                self.log(f"{'reducer:'.ljust(10)} {name_list}")
-                self.log(f"{'size:'.ljust(10)} {size_list}")
-                self.log(f"{'status:'.ljust(10)} {status_list}")
+                self.log(table)
                 self.log("-----------------------------------")
 
             time.sleep(1)
 
         self.log("All reducers have completed. Exiting script.")
-
 
 
     def log(self, message):
