@@ -26,7 +26,6 @@ class Reducer:
         self.process = None
         self.extra_cmd = extra_cmd
         self.shared_dict = shared_dict
-        self.original_size = self.count(os.path.join(self.working_folder, self.program_to_reduce))
 
     def setup_reducer(self):
         if not os.path.exists(self.working_folder):
@@ -35,6 +34,7 @@ class Reducer:
         shutil.copy(self.program_to_reduce, self.working_folder)
         shutil.copy(self.property_test, self.working_folder)
         os.chdir(self.working_folder)
+        self.original_size = self.count(os.path.join(self.working_folder, self.program_to_reduce))
 
     def run_cmd(self, cmd, output_file="/dev/null", error_file="/dev/null"):
         if cmd is None:
@@ -230,10 +230,10 @@ class ReducerRunner:
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                 max_name_length = max(len(reducer.name) for reducer in self.reducer_selected)
-                max_size_length = max(len(f"{reducer.current_size:<10} ({reducer.current_size/reducer.original_size:.2%})") for reducer in self.reducer_selected)
+                max_size_length = max(len(f"{reducer.current_size} / {reducer.original_size} ({reducer.current_size/reducer.original_size:.2%})") for reducer in self.reducer_selected)
                 
                 name_list = " | ".join([f"{reducer.name.ljust(max_name_length)}" for reducer in self.reducer_selected])
-                size_list = " | ".join([f"{str(reducer.current_size).ljust(10)} ({reducer.current_size/reducer.original_size:.2%})".ljust(max_size_length) for reducer in self.reducer_selected])
+                size_list = " | ".join([f"{str(reducer.current_size).ljust(10)} / {str(reducer.original_size).ljust(10)} ({reducer.current_size/reducer.original_size:.2%})".ljust(max_size_length) for reducer in self.reducer_selected])
                 status_list = " | ".join([
                     f"{reducer.name.ljust(max_name_length)}: {self.shared_dict.get(reducer.name, {}).get('status')}"
                     for reducer in self.reducer_selected
@@ -248,6 +248,7 @@ class ReducerRunner:
             time.sleep(1)
 
         self.log("All reducers have completed. Exiting script.")
+
 
 
     def log(self, message):
