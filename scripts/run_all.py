@@ -26,6 +26,7 @@ class Reducer:
         self.process = None
         self.extra_cmd = extra_cmd
         self.shared_dict = shared_dict
+        self.original_size = self.count(os.path.join(self.working_folder, self.program_to_reduce))
 
     def setup_reducer(self):
         if not os.path.exists(self.working_folder):
@@ -228,12 +229,20 @@ class ReducerRunner:
                     sizes_changed = True
             if sizes_changed:
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                size_status = " | ".join([f"{reducer.name}: {reducer.current_size:<10}" for reducer in self.reducer_selected])
-                status = " | ".join([
-                    f"{reducer.name}: {self.shared_dict.get(reducer.name, {}).get('status')}"
+                max_name_length = max(len(reducer.name) for reducer in self.reducer_selected)
+                max_size_length = max(len(f"{reducer.current_size:<10} ({reducer.current_size/reducer.original_size:.2%})") for reducer in self.reducer_selected)
+                
+                name_list = " | ".join([f"{reducer.name.ljust(max_name_length)}" for reducer in self.reducer_selected])
+                size_list = " | ".join([f"{str(reducer.current_size).ljust(10)} ({reducer.current_size/reducer.original_size:.2%})".ljust(max_size_length) for reducer in self.reducer_selected])
+                status_list = " | ".join([
+                    f"{reducer.name.ljust(max_name_length)}: {self.shared_dict.get(reducer.name, {}).get('status')}"
                     for reducer in self.reducer_selected
                 ])
-                self.log(f"Timestamp: {timestamp}\n{'reducer:':<10} {size_status}\n{'status:':<10} {status}")
+                
+                self.log(f"Timestamp: {timestamp}")
+                self.log(f"{'reducer:'.ljust(10)} {name_list}")
+                self.log(f"{'size:'.ljust(10)} {size_list}")
+                self.log(f"{'status:'.ljust(10)} {status_list}")
                 self.log("-----------------------------------")
 
             time.sleep(1)
@@ -252,7 +261,6 @@ class ReducerRunner:
             out_log.write(message + '\n')
 
         print(message)
-
 
     def start(self):
         try:
@@ -278,7 +286,7 @@ class ReducerRunner:
         self.update_thread.join()
 
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        size_status = " | ".join([f"{reducer.name}: {reducer.current_size:<10}" for reducer in self.reducer_selected])
+        size_status = " | ".join([f"{reducer.name}: {reducer.current_size:<10} ({reducer.current_size/reducer.original_size:.2%})" for reducer in self.reducer_selected])
         status = " | ".join([
             f"{reducer.name}: {self.shared_dict.get(reducer.name, {}).get('status')}"
             for reducer in self.reducer_selected
