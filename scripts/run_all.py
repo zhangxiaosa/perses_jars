@@ -131,8 +131,7 @@ class ReducerRunner:
         self.rename_after_reduction = args.rename_after_reduction
         self.program_to_reduce = args.program_to_reduce
         self.property_test = args.property_test
-        self.reducers = args.reducers.split(',') if args.reducers != 'all' else ['perses', 'creduce', 'llvm-reduce']
-        self.slow = args.slow
+        self.reducers = args.reducers.split(',') if args.reducers != 'all' else ['perses', 'perses_slow_mode', 'creduce', 'creduce_slow_mode', 'llvm-reduce']
         self.jobs = args.jobs
         self.all_reducers_done = False
         self.working_folder = os.path.join(os.getcwd(), f"reduction_results_{time.strftime('%Y%m%d_%H%M%S')}")
@@ -143,9 +142,6 @@ class ReducerRunner:
         if not os.path.exists(self.working_folder):
             os.makedirs(self.working_folder)
             print(f"Created folder: {self.working_folder}")
-
-        if self.slow:
-            self.reducers = [reducer.replace('perses', 'perses_slow_mode').replace('creduce', 'creduce_slow_mode') for reducer in self.reducers]
 
         self.reducer_objects = {
             'perses': Reducer(
@@ -300,8 +296,7 @@ class ReducerRunner:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run multiple reducers on a program.")
     parser.add_argument('--rename-after-reduction', action='store_true', help='Whether to rename symbols after reduction.')
-    parser.add_argument('--reducers', type=str, default='all', help='Comma-separated list of reducers to use (perses,creduce,llvm-reduce). Default is "all".')
-    parser.add_argument('--slow', action='store_true', help='Reduce harder, may be slow.')
+    parser.add_argument('--reducers', type=str, default='all', help='Comma-separated list of reducers to use (perses, perses_slow_mode, creduce, creduce_slow_mode, llvm-reduce). Default is "all".')
     parser.add_argument('--jobs', type=int, default=4, help='Number of processes or threads to use.')
     parser.add_argument('--program-to-reduce', type=str, required=True, help='The program to reduce.')
     parser.add_argument('--property-test', type=str, required=True, help='The property test to apply.')
