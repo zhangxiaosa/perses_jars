@@ -39,7 +39,6 @@ class Reducer:
             print(f"Created folder: {self.working_folder}")
         shutil.copy(self.program_to_reduce, self.working_folder)
         shutil.copy(self.property_test, self.working_folder)
-        os.chdir(self.working_folder)
         self.original_size = self.count(os.path.join(self.working_folder, self.program_to_reduce))
 
     def run_cmd(self, cmd, output_file="/dev/null", error_file="/dev/null"):
@@ -51,6 +50,7 @@ class Reducer:
         return self.process
 
     def run(self):
+        os.chdir(self.working_folder)
         self.start_time = time.time()
         print(f"Starting reducer: {self.name}")
         try:
